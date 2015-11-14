@@ -231,6 +231,7 @@ Options in the following `emerge` command:
   * *-v* (*--verbose*)
   * *-a* (*--ask*)
 
+
 	kennethd ~ # emerge -uDNva @world
 	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
 	
@@ -659,8 +660,9 @@ I disagree with that guy about the fqdn thing; I prefer a structure that allows 
 		/highball.org				highball:highball ($HOME) drwxr-xr-x
 			/bin					user's $HOME/bin
 			/etc					user configs
-			/var					user data
 			/ftp					ftp root, if necessary (for example)
+			/git					user's git archives (gitolite host?)
+			/media					media assets shared among vhosts/services
 			/www					per-subdomain directories...
 				/etc				site configs
 				/htdocs				apache DOCUMENT_ROOT
@@ -669,7 +671,9 @@ I disagree with that guy about the fqdn thing; I prefer a structure that allows 
 				/etc				site configs
 				/htdocs				apache DOCUMENT_ROOT
 				/venv				python virtualenv (for example, whatever resources a www release needs)
+			/tmp					user's temp dir
 			/trac					trac webapp
+			/var					user data
 			/wiki					dokuwiki webapp
 
 ### User isolation
@@ -709,6 +713,93 @@ For now, I will keep things simple by never setting a password.  An ssh key can 
 	highball:!:16753:0:99999:7:::
 
 TODO: we probably want to modify the HOME directory permissions to *drwx--x--x* for a slight improvement in protecting vhosts' assets from each other.
+
+### Create apache virtual host DIRECTORY_ROOT and config
+
+The vhost DIRECTORY_ROOT should be a repo.  Improvements will be made later for setting this up, atm I just want to get past this apache stuff to the mail bits.
+
+	sudo su - highball
+	highball@kennethd ~ $ pwd
+	/vhosts/highball.org
+	highball@kennethd ~ $ mkdir {bin,etc,tmp,var}
+	highball@kennethd ~ $ mkdir -p www/htdocs
+	highball@kennethd ~ $ vim www/htdocs/index.html
+
+Edit the `index.html` file and exit back to root
+
+	kennethd ~ # cd /etc/apache2/vhosts.d/
+	kennethd vhosts.d # ls -lh
+	total 20K
+	-rw-r--r-- 1 root root 8.4K Nov 11 17:52 00_default_ssl_vhost.conf
+	-rw-r--r-- 1 root root 1.5K Nov 11 17:52 00_default_vhost.conf
+	-rw-r--r-- 1 root root 2.8K Nov 14 21:43 default_vhost.include
+	kennethd vhosts.d # vim highball.org.conf
+
+Edit to look something like this:
+
+	<IfDefine DEFAULT_VHOST>
+	
+	  <VirtualHost *:80>
+		 ServerName www.highball.org
+		 ServerAlias highball.org
+		 DocumentRoot "/vhosts/highball.org/www/htdocs"
+		 <Directory "/vhosts/highball.org/www/htdocs">
+			Options Indexes FollowSymLinks
+			AllowOverride All
+			Order allow,deny
+			Allow from all
+		 </Directory>
+	  </VirtualHost>
+	
+	</IfDefine>
+
+My first try to restart fails:
+
+	kennethd vhosts.d # /etc/init.d/apache2 stop 
+	 * Caching service dependencies ...                           [ ok ]
+	 * Stopping apache2 ...
+	AH00526: Syntax error on line 10 of /etc/apache2/vhosts.d/highball.org.conf:
+	Invalid command 'Order', perhaps misspelled or defined by a module not included in the server configuration
+
+According to https://httpd.apache.org/docs/2.4/upgrading.html the authentication mechanism changed between 2.2 and 2.4, and what we need is a module called mod_authz_host.
+
+Try to get info about installed version
+
+	kennethd vhosts.d # eix  www-servers/apache  
+	cannot open database file /var/cache/eix/portage.eix for reading
+	Did you forget to create it with "eix-update"?
+	kennethd vhosts.d # eix-update 
+
+Trying `eix` again, we learn:
+
+	     Installed versions:  2.4.16(2)(05:52:29 PM 11/11/2015)(ssl -alpn -debug -doc -ldap -libressl -selinux -static -suexec -threads APACHE2_MODULES="actions alias auth_basic authn_alias authn_anon authn_core authn_dbm authn_file authz_core authz_dbm authz_groupfile authz_host authz_owner authz_user autoindex cache cgi cgid dav dav_fs dav_lock deflate dir env expires ext_filter file_cache filter headers include info log_config logio mime mime_magic negotiation rewrite setenvif socache_shmcb speling status unique_id unixd userdir usertrack vhost_alias -access_compat -asis -auth_digest -authn_dbd -authz_dbd -cache_disk -cern_meta -charset_lite -dbd -dumpio -ident -imagemap -lbmethod_bybusyness -lbmethod_byrequests -lbmethod_bytraffic -lbmethod_heartbeat -log_forensic -macro -proxy -proxy_ajp -proxy_balancer -proxy_connect -proxy_fcgi -proxy_ftp -proxy_http -proxy_scgi -proxy_wstunnel -ratelimit -remoteip -reqtimeout -slotmem_shm -substitute -version" APACHE2_MPMS="-event -peruser -prefork -worker")
+
+So it looks like **authz_host** is enabled, we can just begin to use the **Require** keyword instead of **Order**, **Allow**, and **Deny**.
+
+	<IfDefine DEFAULT_VHOST>
+	
+	  <VirtualHost *:80>
+		 ServerName www.highball.org
+		 ServerAlias highball.org
+		 DocumentRoot "/vhosts/highball.org/www/htdocs"
+		 <Directory "/vhosts/highball.org/www/htdocs">
+			Options Indexes FollowSymLinks
+			AllowOverride All
+			Require all granted
+		 </Directory>
+	  </VirtualHost>
+	
+	</IfDefine>
+
+Restart apache
+
+	kennethd vhosts.d # /etc/init.d/apache2 stop 
+	 * Stopping apache2 ...  [ ok ]
+	 kennethd vhosts.d # /etc/init.d/apache2 start
+	  * Starting apache2 ... [ ok ]
+
+Update your DNS record or `/etc/hosts` to point your hostname toward your server's IP address, and make a request from your browser.  You should see the HTML you defined in *index.html* above.
+
 
 
 
