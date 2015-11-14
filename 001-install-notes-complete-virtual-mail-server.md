@@ -10,7 +10,7 @@ Install a couple of packages:
 
     kennethd ~ # emerge app-misc/screen htop sys-process/lsof net-misc/wget net-misc/curl vim keychain
 
-# Funtoo wiki's First Steps page
+## Funtoo wiki's First Steps page
 
 http://www.funtoo.org/Funtoo_Linux_First_Steps
 
@@ -91,16 +91,18 @@ I may also want to remember to install **net-misc/ssh-askpass-fullscreen** provi
 
 The wiki page does not create a user group, but that seems weird to me.  I asked on IRC & apparantly in the Funtoo/Gentoo community both ways are common
 
-kennethd ~ # groupadd kenneth
-kennethd ~ # groupadd -r sudo 
-kennethd ~ # useradd -m -g kenneth -G wheel,adm,sudo,users kenneth 
-kennethd ~ # passwd kenneth
+The *-m* flag to useradd causes it to create a HOME directory for the new user.
+
+	kennethd ~ # groupadd kenneth
+	kennethd ~ # groupadd -r sudo 
+	kennethd ~ # useradd -m -g kenneth -G wheel,adm,sudo,users kenneth 
+	kennethd ~ # passwd kenneth
 
 # Gentoo wiki Complete Virtual Mail Server
 
 I will be following directions @ https://wiki.gentoo.org/wiki/Complete_Virtual_Mail_Server
-this is my first gentoo/funtoo experience, so first i must learn about USE FLAGS
-see https://wiki.gentoo.org/wiki/Handbook:X86/Working/USE
+
+First I must learn a bit about USE FLAGS, see https://wiki.gentoo.org/wiki/Handbook:X86/Working/USE
 
 	kennethd ~ # emerge --info | grep ^USE
 	USE="acl amd64 berkdb bzip2 cracklib crypt cxx gdbm iconv icu ipv6 mmx modules mudflap multilib ncurses nls nptl openmp pam pcre python readline resolvconf sse sse2 ssl tcpd unicode xattr xml zlib" ABI_X86="64" APACHE2_MODULES="actions alias auth_basic authn_alias authn_anon authn_dbm authn_default authn_file authz_dbm authz_default authz_groupfile authz_host authz_owner authz_user autoindex cache cgi cgid dav dav_fs dav_lock deflate dir disk_cache env expires ext_filter file_cache filter headers include info log_config logio mem_cache mime mime_magic negotiation rewrite setenvif speling status unique_id userdir usertrack vhost_alias authn_core authz_core socache_shmcb unixd" CALLIGRA_FEATURES="kexi words flow plan sheets stage tables krita karbon braindump author" CAMERAS="ptp2" COLLECTD_PLUGINS="df interface irq load memory rrdtool swap syslog" CPU_FLAGS_X86="aes mmx mmxext popcnt sse sse2 sse3 sse4_1 sse4_2 ssse3" ELIBC="glibc" GPSD_PROTOCOLS="ashtech aivdm earthmate evermore fv18 garmin garmintxt gpsclock itrax mtk3301 nmea ntrip navcom oceanserver oldstyle oncore rtcm104v2 rtcm104v3 sirf superstar2 timing tsip tripmate tnt ublox ubx" GRUB_PLATFORMS="efi-64 pc" INPUT_DEVICES="evdev synaptics keyboard mouse" KERNEL="linux" LCD_DEVICES="bayrad cfontz cfontz633 glk hd44780 lb216 lcdm001 mtxorb ncurses text" LIBREOFFICE_EXTENSIONS="presenter-console presenter-minimizer" OFFICE_IMPLEMENTATION="libreoffice" PHP_TARGETS="php5-5" PYTHON_ABIS="2.7 3.3" PYTHON_SINGLE_TARGET="python3_3" PYTHON_TARGETS="python2_7 python3_3" QEMU_SOFTMMU_TARGETS="i386 x86_64" QEMU_USER_TARGETS="i386 x86_64" RUBY_TARGETS="ruby20 ruby21 ruby22" USERLAND="GNU" XTABLES_ADDONS="quota2 psd pknock lscan length2 ipv4options ipset ipp2p iface geoip fuzzy condition tee tarpit sysrq steal rawnat logmark ipmark dhcpmac delude chaos account"
@@ -108,7 +110,7 @@ see https://wiki.gentoo.org/wiki/Handbook:X86/Working/USE
 OK.  The recommended installation includes Apache + PHP, I will have to remember to review the PHP "uses" later (equery uses php) -- enable cli + readline
 
 according to https://wiki.gentoo.org/wiki/Complete_Virtual_Mail_Server/System_Setup_and_Packages
-it looks like we need to add USE entries for apache2 imap postgres (and because i still have services on my old server that use both) mysql
+it looks like we need to add USE entries for apache2 imap postgres and (because i still have services on my old server that use both) mysql
 
 	kennethd ~ # cp /etc/portage/make.conf.example /etc/portage/make.conf
 	kennethd ~ # vim /etc/portage/make.conf
@@ -198,6 +200,7 @@ it looks weird to remove mdadm & lvm2, but this is a simfs filesystem:
 			shm               24717944         0  24717944   0% /dev/shm
 			cgroup_root          10240         4     10236   1% /sys/fs/cgroup
 
+Check if changes broke anything
 
 	kennethd ~ # revdep-rebuild 
 	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
@@ -219,6 +222,15 @@ That's expected on the hosted Funtoo.org containers.
 
 	!!! git pull error in /var/src/portage
 	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+
+Options in the following `emerge` command:
+
+  * *-u* (*--changed-use*) Tells emerge to include installed packages where USE flags have changed since installation. This option also implies the --selective option.
+  * *-D* (*--deep*) This flag forces emerge to consider the entire dependency tree of packages, instead of checking only the immediate dependencies of the packages.
+  * *-N* (*--newuse*) Tells emerge to include installed packages where USE flags have changed since compilation. This option also implies the --selective option.
+  * *-v* (*--verbose*)
+  * *-a* (*--ask*)
+
 	kennethd ~ # emerge -uDNva @world
 	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
 	
@@ -641,7 +653,7 @@ Some studying: https://wiki.gentoo.org/wiki/Webapp-config Summarizes webapp-conf
 
 http://gentoovps.net/webapp-config/ looks like it will fill in some of the practical HOWTO stuff.  It immediately refers us to http://gentoovps.net/apache-vhost/
 
-I disagree with that guy about the fqdn thing; I prefer a structure that allows for a dedicated user for each domain, regardless of number of subdomains;
+I disagree with that guy about the fqdn thing; I prefer a structure that allows for a dedicated user for each domain, regardless of number of subdomains; something like;
 
 	/vhosts 						root:root drwx--x--x
 		/highball.org				highball:highball ($HOME) drwxr-xr-x
@@ -653,11 +665,51 @@ I disagree with that guy about the fqdn thing; I prefer a structure that allows 
 				/etc				site configs
 				/htdocs				apache DOCUMENT_ROOT
 				/venv				python virtualenv (for example, whatever resources a www release needs)
-			/qa						more subdomains...
+			/qa						more subdomain deploys...
 				/etc				site configs
 				/htdocs				apache DOCUMENT_ROOT
 				/venv				python virtualenv (for example, whatever resources a www release needs)
 			/trac					trac webapp
 			/wiki					dokuwiki webapp
+
+### User isolation
+
+I usually use LVM to isolate vhosts into their own partitions, mitigating the chance a rogue process fills the disk and brings down all services on the machine.
+
+The Funtoo host is already an isolated container, suited more to hosting a single app or vhost such as I would partition.
+
+This page suggests kernel quotas will work with simfs https://www.howtoforge.com/community/threads/ispconfig-only-works-on-lvm-partion.66304/
+
+### Create /vhosts base dir
+
+I don't like keeping virtual host user accounts' HOME directories under /var/www, nor mixed in with regular users under /home
+
+	kennethd ~ # mkdir /vhosts
+	kennethd ~ # ls -ld /vhosts 
+	drwxr-xr-x 2 root root 4096 Nov 14 19:14 /vhosts
+	kennethd ~ # chmod 0715 /vhosts 
+	kennethd ~ # ls -ld /vhosts 
+	drwx--xr-x 2 root root 4096 Nov 14 19:14 /vhosts
+
+### Create user and HOME
+
+Should the vhost user be allowed to log in?  To have a password?
+
+	kennethd ~ # groupadd highball
+	kennethd ~ # useradd -b /vhosts -d /vhosts/highball.org -m -g highball -G users highball
+	kennethd ~ # ls -l /vhosts/
+	total 4
+	drwxr-xr-x 3 highball highball 4096 Nov 14 20:38 highball.org
+
+For now, I will keep things simple by never setting a password.  An ssh key can still be created for the user if they need shell access or deployment keys.
+
+	kennethd ~ # grep highball /etc/passwd
+	highball:x:5002:5002::/vhosts/highball.org:/bin/bash
+	kennethd ~ # grep highball /etc/shadow
+	highball:!:16753:0:99999:7:::
+
+TODO: we probably want to modify the HOME directory permissions to *drwx--x--x* for a slight improvement in protecting vhosts' assets from each other.
+
+
 
 
