@@ -85,6 +85,15 @@ Note potential problem about missing linux sources:
 
 I may also want to remember to install **net-misc/ssh-askpass-fullscreen** provided it is ncurses/not-X
 
+## Create user
+
+The wiki page does not create a user group, but that seems weird to me.  I asked on IRC & apparantly in the Funtoo/Gentoo community both ways are common
+
+kennethd ~ # groupadd kenneth
+kennethd ~ # groupadd -r sudo 
+kennethd ~ # useradd -m -g kenneth -G wheel,adm,sudo,users kenneth 
+kennethd ~ # passwd kenneth
+
 # Gentoo wiki Complete Virtual Mail Server
 
 I will be following directions @ https://wiki.gentoo.org/wiki/Complete_Virtual_Mail_Server
@@ -599,6 +608,53 @@ https://wiki.gentoo.org/wiki/Complete_Virtual_Mail_Server/Postfix_to_Database
 	< 
 	< 
 	kennethd ~ # rm /etc/postfix/._cfg0000_main.cf 
+
+## Re-emerge postfixadmin
+
+Continuing with the instructions above, a user & db schema is missing.  Re-emerging postfixadmin reveals a step I missed:
+
+	kennethd ~ # emerge postfixadmin
+	 * Messages for package www-apps/postfixadmin-2.3.8:
+	
+	 * (config) htdocs/config.inc.php
+	 * (info) /var/src/portage/www-apps/postfixadmin/files/postinstall-en-2.3.txt (lang: en)
+	 * 
+	 * The 'vhosts' USE flag is switched ON
+	 * This means that Portage will not automatically run webapp-config to
+	 * complete the installation.
+	 * 
+	 * To install postfixadmin-2.3.8 into a virtual host, run the following command:
+	 * 
+	 *     webapp-config -h <host> -d postfixadmin -I postfixadmin 2.3.8
+	 * 
+	 * For more details, see the webapp-config(8) man page
+
+`man 8 webapp-config` is worth reading.  It looks like a nice system, definitely a pleasant surprise (I wonder how I'd never heard of it), but it will be a new set of conventions to pick up along the way.
+
+## Create vhost user & HOME
+
+First, I imagine the domain & domain owner user account must be created before I can create the postfix database for the domain.
+
+Some studying: https://wiki.gentoo.org/wiki/Webapp-config Summarizes webapp-config very well, but offers little in terms of practical getting started info.
+
+http://gentoovps.net/webapp-config/ looks like it will fill in some of the practical HOWTO stuff.  It immediately refers us to http://gentoovps.net/apache-vhost/
+
+I disagree with that guy about the fqdn thing; I prefer a structure that allows for a dedicated user for each domain, regardless of number of subdomains;
+
+	/vhosts 						root:root drwx--x--x
+		/highball.org				highball:highball ($HOME) drwxr-xr-x
+			/bin					user's $HOME/bin
+			/etc					user configs
+			/var					user data
+			/ftp					ftp root, if necessary (for example)
+			/www					per-subdomain directories...
+				/etc				site configs
+				/htdocs				apache DOCUMENT_ROOT
+				/venv				python virtualenv (for example, whatever resources a www release needs)
+			/qa						more subdomains...
+			/trac					trac webapp
+			/wiki					dokuwiki webapp
+
 
 
 
