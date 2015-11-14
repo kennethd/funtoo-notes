@@ -1,4 +1,6 @@
-# 2015-11-10 kld
+2015-11-10 kld
+
+# Funtoo Notes
 
 These are notes from the initial install of *kennethd.host.funtoo.org*.
 
@@ -6,7 +8,7 @@ This is my first experience with a Funtoo/Gentoo system, so a lot of rudimentary
 
 Install a couple of packages:
 
-    kennethd ~ # emerge app-misc/screen htop sys-process/lsof net-misc/wget net-misc/curl vim
+    kennethd ~ # emerge app-misc/screen htop sys-process/lsof net-misc/wget net-misc/curl vim keychain
 
 # Funtoo wiki's First Steps page
 
@@ -652,9 +654,10 @@ I disagree with that guy about the fqdn thing; I prefer a structure that allows 
 				/htdocs				apache DOCUMENT_ROOT
 				/venv				python virtualenv (for example, whatever resources a www release needs)
 			/qa						more subdomains...
+				/etc				site configs
+				/htdocs				apache DOCUMENT_ROOT
+				/venv				python virtualenv (for example, whatever resources a www release needs)
 			/trac					trac webapp
 			/wiki					dokuwiki webapp
-
-
 
 
