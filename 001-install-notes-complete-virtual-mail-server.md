@@ -896,38 +896,38 @@ It should now look something like this:
 
 	<IfDefine DEFAULT_VHOST>
 	
-	>---<VirtualHost *:80>
-	>--->---ServerName www.highball.org
-	>--->---ServerAlias highball.org
-	>--->---# redirect all port 80 traffic to 443
-	>--->---RewriteEngine On
-	>--->---RewriteRule (.*) https://www.highball.org$1 [R=301,L]
-	>---</VirtualHost>
+	    <VirtualHost *:80>
+	        ServerName www.highball.org
+	        ServerAlias highball.org
+	        # redirect all port 80 traffic to 443
+	        RewriteEngine On
+	        RewriteRule (.*) https://www.highball.org$1 [R=301,L]
+	    </VirtualHost>
 	
-	>---<IfDefine SSL>
-	>--->---<IfModule ssl_module>
-	>--->--->---<VirtualHost *:443>
-	>--->--->--->---SSLEngine on
-	>--->--->--->---SSLOptions StrictRequire
-	>--->--->--->---SSLProtocol all -SSLv2
-	>--->--->--->---SSLCertificateFile /etc/ssl/apache2/highball.org.crt
-	>--->--->--->---SSLCertificateKeyFile /etc/ssl/apache2/highball.org.key
+	    <IfDefine SSL>
+	        <IfModule ssl_module>
+	            <VirtualHost *:443>
+	                SSLEngine on
+	                SSLOptions StrictRequire
+	                SSLProtocol all -SSLv2
+	                SSLCertificateFile /etc/ssl/apache2/highball.org.crt
+	                SSLCertificateKeyFile /etc/ssl/apache2/highball.org.key
 	
-	>--->--->--->---ServerName www.highball.org
-	>--->--->--->---ServerAlias highball.org
-	>--->--->--->---ServerAdmin kenneth@highball.org
+	                ServerName www.highball.org
+	                ServerAlias highball.org
+	                ServerAdmin kenneth@highball.org
 	
-	>--->--->--->---DocumentRoot "/vhosts/highball.org/www/htdocs"
-	>--->--->--->---<Directory "/vhosts/highball.org/www/htdocs">
-	>--->--->--->--->---SSLRequireSSL
-	>--->--->--->--->---Options Indexes FollowSymLinks
-	>--->--->--->--->---AllowOverride All
-	>--->--->--->--->---Require all granted
-	>--->--->--->---</Directory>
+	                DocumentRoot "/vhosts/highball.org/www/htdocs"
+	                <Directory "/vhosts/highball.org/www/htdocs">
+	                    SSLRequireSSL
+	                    Options Indexes FollowSymLinks
+	                    AllowOverride All
+	                    Require all granted
+	                </Directory>
 	
-	>--->--->---</VirtualHost>
-	>--->---</IfModule>
-	>---</IfDefine>
+	            </VirtualHost>
+	        </IfModule>
+	    </IfDefine>
 	
 	</IfDefine>
 
