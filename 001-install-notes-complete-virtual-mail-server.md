@@ -801,6 +801,159 @@ Restart apache
 Update your DNS record or `/etc/hosts` to point your hostname toward your server's IP address, and make a request from your browser.  You should see the HTML you defined in *index.html* above.
 
 
+## Apache SSL
+
+  * http://gentoovps.net/apache-ssl/
+  * https://www.phildev.net/ssl/opensslconf.html
+
+This might be a good time to try out the Let's Encrypt! beta invite I got last week
+
+  * https://letsencrypt.readthedocs.org/en/latest/using.html#installation-and-usage
+
+On second thought, it looks like that is going to require adding `emerge` support.  Easier to stick to self-signed for now.
+
+### Configure defaults for openssl
+
+Set a few defaults in `/etc/ssl/openssl.conf`:
+
+	kennethd ~ # diff /etc/ssl/openssl.cnf.orig /etc/ssl/openssl.cnf
+	73c73,74
+	< default_days	= 365			# how long to certify for
+	---
+	> #default_days	= 365			# how long to certify for
+	> default_days	= 1095
+	129c130
+	< countryName_default		= AU
+	---
+	> countryName_default		= US
+	134c135
+	< stateOrProvinceName_default	= 
+	---
+	> stateOrProvinceName_default	= New York
+	136a138
+	> localityName_default	= New York City
+	139c141
+	< 0.organizationName_default	= 
+	---
+	> 0.organizationName_default	= Ylayali.net
+	157,159c159,161
+	< challengePassword		= A challenge password
+	< challengePassword_min		= 4
+	< challengePassword_max		= 20
+	---
+	> #challengePassword		= A challenge password
+	> #challengePassword_min		= 4
+	> #challengePassword_max		= 20
+	161c163
+	< unstructuredName		= An optional company name
+	---
+	> #unstructuredName		= An optional company name
+
+### Create key & cert for apache
+
+Generate a key and then a cert
+
+	kennethd ~ # cd /etc/ssl
+	kennethd ssl # mkdir self-signed 
+	kennethd ssl # cd self-signed/
+	kennethd self-signed # openssl genrsa 2048 > highball.org.key
+	Generating RSA private key, 2048 bit long modulus
+	..............................................................................................................................................+++
+	.+++
+	e is 65537 (0x10001)
+	kennethd self-signed # openssl req -new -x509 -nodes -sha1 -key highball.org.key > highball.org.crt
+	You are about to be asked to enter information that will be incorporated
+	into your certificate request.
+	What you are about to enter is what is called a Distinguished Name or a DN.
+	There are quite a few fields but you can leave some blank
+	For some fields there will be a default value,
+	If you enter '.', the field will be left blank.
+	-----
+	Country Name (2 letter code) [US]:
+	State or Province Name (full name) [New York]:
+	Locality Name (eg, city) [New York City]:
+	Organization Name (eg, company) [Ylayali.net]:
+	Organizational Unit Name (eg, section) []:highball.org
+	Common Name (eg, YOUR name) []:highball.org
+	Email Address []:kenneth@highball.org
+
+Symlink them to the `/etc/ssl/apache/` directory
+
+	kennethd self-signed # cd ../apache2/
+	kennethd apache2 # ln -s ../self-signed/highball.org.* . 
+	kennethd apache2 # ls -lh ./highball.org.* 
+	lrwxrwxrwx 1 root root 31 Nov 15 01:48 ./highball.org.crt -> ../self-signed/highball.org.crt
+	lrwxrwxrwx 1 root root 31 Nov 15 01:48 ./highball.org.key -> ../self-signed/highball.org.key
+
+### Revisit vhost's apache config
+
+There are a few options available in terms of enforcing use of SSL
+
+	kennethd apache2 # cd /etc/apache2/vhosts.d/
+	kennethd vhosts.d # vim highball.org.conf
+
+It should now look something like this:
+
+	<IfDefine DEFAULT_VHOST>
+	
+	>---<VirtualHost *:80>
+	>--->---ServerName www.highball.org
+	>--->---ServerAlias highball.org
+	>--->---# redirect all port 80 traffic to 443
+	>--->---RewriteEngine On
+	>--->---RewriteRule (.*) https://www.highball.org$1 [R=301,L]
+	>---</VirtualHost>
+	
+	>---<IfDefine SSL>
+	>--->---<IfModule ssl_module>
+	>--->--->---<VirtualHost *:443>
+	>--->--->--->---SSLEngine on
+	>--->--->--->---SSLOptions StrictRequire
+	>--->--->--->---SSLProtocol all -SSLv2
+	>--->--->--->---SSLCertificateFile /etc/ssl/apache2/highball.org.crt
+	>--->--->--->---SSLCertificateKeyFile /etc/ssl/apache2/highball.org.key
+	
+	>--->--->--->---ServerName www.highball.org
+	>--->--->--->---ServerAlias highball.org
+	>--->--->--->---ServerAdmin kenneth@highball.org
+	
+	>--->--->--->---DocumentRoot "/vhosts/highball.org/www/htdocs"
+	>--->--->--->---<Directory "/vhosts/highball.org/www/htdocs">
+	>--->--->--->--->---SSLRequireSSL
+	>--->--->--->--->---Options Indexes FollowSymLinks
+	>--->--->--->--->---AllowOverride All
+	>--->--->--->--->---Require all granted
+	>--->--->--->---</Directory>
+	
+	>--->--->---</VirtualHost>
+	>--->---</IfModule>
+	>---</IfDefine>
+	
+	</IfDefine>
+
+Test the config with `apache2 -S` and `apache2 -t` then restart it with `/etc/init.d/apache2 stop` and `/etc/init.d/apache2 start`
+
+### Test the redirect
+
+If your curl is picky about SSL certs you may have to look up the option for "no validate" (or something like that)
+
+	kenneth@x1:~$ curl --verbose http://www.highball.org 
+	* Rebuilt URL to: http://www.highball.org/
+	* Hostname was NOT found in DNS cache
+	*   Trying 172.97.103.107...
+	* Connected to www.highball.org (172.97.103.107) port 80 (#0)
+	> GET / HTTP/1.1
+	> User-Agent: curl/7.35.0
+	> Host: www.highball.org
+	> Accept: */*
+	> 
+	< HTTP/1.1 301 Moved Permanently
+	< Date: Sun, 15 Nov 2015 02:27:19 GMT
+	* Server Apache is not blacklisted
+	< Server: Apache
+	< Location: https://www.highball.org/
+
+
 
 
 
