@@ -1162,6 +1162,21 @@ Again edit `/etc/apache2/vhosts.d/highball.org.conf` to add a second VirtualHost
 
 Restart apache
 
+## Create postgres db for users
+
+	kennethd ~ # createuser -U postgres --pwprompt postfixadmin
+	Enter password for new role: 
+	Enter it again: 
+	kennethd ~ # createdb -U postgres --owner=postfixadmin postfix
+
+Edit `/vhosts/highball.org/mail/htdocs/postfixadmin/config.inc.php` and set `$CONF['configured'] = true;` and change "mysql" to "pgsql".
+
+Visit https://mail.highball.org/postfixadmin/setup.php.  It will create the database and prompt you for a setup password, which you should save to the config.inc.php file.
+
+Navigate again to https://mail.highball.org/postfixadmin/setup.php and you will be prompted to create a superuser.
+
+
+
 
 
 
