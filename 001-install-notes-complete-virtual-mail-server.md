@@ -662,6 +662,7 @@ I disagree with that guy about the fqdn thing; I prefer a structure that allows 
 			/etc					user configs
 			/ftp					ftp root, if necessary (for example)
 			/git					user's git archives (gitolite host?)
+			/mail					webmail files
 			/media					media assets shared among vhosts/services
 			/www					per-subdomain directories...
 				/etc				site configs
@@ -985,6 +986,88 @@ Ok, and with some trepidation...
 	*   Linking in required files
 	*     This can take several minutes for larger apps
 	*   Files and directories installed
+
+But notice:
+
+	Once the database and user have been allocated, you will need to provide the
+	details of this database and the associated user within the configuration file:
+	
+	  /var/www/mail.highball.org/htdocs/vhosts/highball.org/mail/config.inc.php
+
+Ok, failure #1.  Seems to have ignored my *-d* switch.
+
+Also:
+
+	Finally you should be able to complete the installation of postfixadmin by
+	pointing your browser at:
+	
+	  http://mail.highball.org//vhosts/highball.org/mail/setup.php
+
+Interesting, so *-d* is only a subdirectory within the vhost filesystem.
+
+
+## webapp-config uninstall postfixadmin
+
+	kennethd ~ # ls /var/www
+	localhost  mail.highball.org
+	kennethd ~ # webapp-config -h mail.highball.org -d /vhosts/highball.org/mail -C  postfixadmin 2.3.8
+	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+	* Removing postfixadmin-2.3.8 from /var/www/mail.highball.org/htdocs/vhosts/highball.org/mail
+	*   Installed by root on 2015-11-16 12:02:19
+	*   Config files owned by 5002:5002
+	* Remove whatever is listed above by hand
+	kennethd ~ # rm -rf /var/www/mail.highball.org/
+
+## vhost_root
+
+Consulting `/etc/vhosts/webapp-config` it looks like we can control the installation location via the *vhost_root* configuration variable, and that some variables are available for custom directory structures:
+
+	vhost_root="/var/www/${vhost_hostname}"
+	#vhost_root="/srv/${vhost_hostname}/www"
+	#vhost_root="/var/www/${vhost_subdomain_1}/${vhost_subdomain_2}/${vhost_subdomain_3}"
+
+Let's see what that third option does, as-is:
+
+	kennethd ~ # webapp-config -u highball -g highball -h mail.highball.org -I postfixadmin 2.3.8
+
+drops things in:
+
+	/vhosts/org/highball/mail/htdocs/postfixadmin/config.inc.php
+
+So the *vhost_subdomain_n* variables are in FQDN order, reinstall once more:
+
+	kennethd ~ # webapp-config --list-installs
+	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+	/vhosts/org/highball/mail/htdocs/postfixadmin
+	kennethd ~ # webapp-config -h mail.highball.org -C  postfixadmin 2.3.8
+	* Install dir flag not supplied, defaulting to "postfixadmin".
+	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+	* Removing postfixadmin-2.3.8 from /vhosts/org/highball/mail/htdocs/postfixadmin
+	*   Installed by root on 2015-11-16 13:03:21
+	*   Config files owned by 5002:5002
+	* Remove whatever is listed above by hand
+	kennethd ~ # ls /vhosts/
+	highball.org  org
+	kennethd ~ # rm -rf  /vhosts/org
+
+For my scheme it seems I want:
+
+	vhost_root="/vhosts/${vhost_subdomain_2}.${vhost_subdomain_1}/${vhost_subdomain_3}"
+
+I made one other change to the file, changing "conf" to "etc":
+
+	vhost_config_dir="${vhost_root}/etc"
+
+
+## webapp-config install postfixadmin again
+
+	kennethd ~ # webapp-config -u highball -g highball -h mail.highball.org -I postfixadmin 2.3.8
+	* Install dir flag not supplied, defaulting to "postfixadmin".
+	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+	*   Creating required directories
+	*   Linking in required files
+	*     This can take several minutes for larger apps
+	*   Files and directories installed
 	
 	=================================================================
 	POST-INSTALL INSTRUCTIONS
@@ -1005,10 +1088,8 @@ Ok, and with some trepidation...
 	Once the database and user have been allocated, you will need to provide the
 	details of this database and the associated user within the configuration file:
 	
-	  /var/www/mail.highball.org/htdocs/vhosts/highball.org/mail/config.inc.php
-
-Ok, failure #1.  Seems to have ignored my *-d* switch.
-
+	  /vhosts/highball.org/mail/htdocs/postfixadmin/config.inc.php
+	
 	In the same configuration file, check for other settings that are relevant to
 	your setup. Once you're finished with your changes, make sure you set:
 	
@@ -1019,14 +1100,12 @@ Ok, failure #1.  Seems to have ignored my *-d* switch.
 	Finally you should be able to complete the installation of postfixadmin by
 	pointing your browser at:
 	
-	  http://mail.highball.org//vhosts/highball.org/mail/setup.php
-
-Interesting, so *-d* is only a subdirectory within the vhost filesystem.
-
+	  http://mail.highball.org/postfixadmin/setup.php
+	
 	Postfix Admin contains 3 views of administration:
-	  1. Site Admin view, located at http://mail.highball.org//vhosts/highball.org/mail/admin/.
-	  2. Domain Admin view, located at http://mail.highball.org//vhosts/highball.org/mail/.
-	  3. User Admin View, located at http://mail.highball.org//vhosts/highball.org/mail/users/.
+	  1. Site Admin view, located at http://mail.highball.org/postfixadmin/admin/.
+	  2. Domain Admin view, located at http://mail.highball.org/postfixadmin/.
+	  3. User Admin View, located at http://mail.highball.org/postfixadmin/users/.
 	
 	In order to do the initial configuration you have to go to the Site Admin view.
 	
@@ -1040,25 +1119,48 @@ Interesting, so *-d* is only a subdirectory within the vhost filesystem.
 	
 	For update from version 1.5.x of PostfixAdmin:
 	  1. Please read the DOCUMENTS/UPGRADE.TXT
-	  2. Run: http://mail.highball.org//vhosts/highball.org/mail/setup.php
+	  2. Run: http://mail.highball.org/postfixadmin/setup.php
 	
 	=================================================================
 	
 	* Install completed - success
 
-## webapp-config uninstall postfixadmin
+## Apache virtualhost for webmail
 
-	kennethd ~ # ls /var/www
-	localhost  mail.highball.org
-	kennethd ~ # webapp-config -h mail.highball.org -d /vhosts/highball.org/mail -C  postfixadmin 2.3.8
-	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
-	* Removing postfixadmin-2.3.8 from /var/www/mail.highball.org/htdocs/vhosts/highball.org/mail
-	*   Installed by root on 2015-11-16 12:02:19
-	*   Config files owned by 5002:5002
-	* Remove whatever is listed above by hand
-	kennethd ~ # rm -rf /var/www/mail.highball.org/
+Again edit `/etc/apache2/vhosts.d/highball.org.conf` to add a second VirtualHost, this time for mail.highball.org:
 
+    <VirtualHost *:80>
+        ServerName mail.highball.org
+        # redirect all port 80 traffic to 443
+        RewriteEngine On
+        RewriteRule (.*) https://mail.highball.org$1 [R=301,L]
+    </VirtualHost>
 
+    <IfDefine SSL>
+        <IfModule ssl_module>
+            <VirtualHost *:443>
+                SSLEngine on
+                SSLOptions StrictRequire
+                SSLProtocol all -SSLv2
+                SSLCertificateFile /etc/ssl/apache2/highball.org.crt
+                SSLCertificateKeyFile /etc/ssl/apache2/highball.org.key
+
+                ServerName mail.highball.org
+                ServerAdmin kenneth@highball.org
+
+                DocumentRoot "/vhosts/highball.org/mail/htdocs"
+                <Directory "/vhosts/highball.org/mail/htdocs">
+                    SSLRequireSSL
+                    Options Indexes FollowSymLinks
+                    AllowOverride All
+                    Require all granted
+                </Directory>
+
+            </VirtualHost>
+        </IfModule>
+    </IfDefine>
+
+Restart apache
 
 
 
