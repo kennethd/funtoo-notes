@@ -954,6 +954,112 @@ If your curl is picky about SSL certs you may have to look up the option for "no
 	< Location: https://www.highball.org/
 
 
+## webapp-config install postfixadmin
+
+  * https://wiki.gentoo.org/wiki/Complete_Virtual_Mail_Server/Admin_Support_Systems
+
+Finally, we are back here again.
+
+	kennethd ~ # mkdir /vhosts/highball.org/mail
+	kennethd ~ # emerge --ask postfixadmin
+	
+	 * Messages for package www-apps/postfixadmin-2.3.8:
+	
+	 * (config) htdocs/config.inc.php
+	 * (info) /var/src/portage/www-apps/postfixadmin/files/postinstall-en-2.3.txt (lang: en)
+	 * 
+	 * The 'vhosts' USE flag is switched ON
+	 * This means that Portage will not automatically run webapp-config to
+	 * complete the installation.
+	 * 
+	 * To install postfixadmin-2.3.8 into a virtual host, run the following command:
+	 * 
+	 *     webapp-config -h <host> -d postfixadmin -I postfixadmin 2.3.8
+	 * 
+	 * For more details, see the webapp-config(8) man page
+
+Ok, and with some trepidation...
+
+	kennethd ~ # webapp-config -u highball -g highball -h mail.highball.org -d /vhosts/highball.org/mail -I postfixadmin 2.3.8
+	*   Creating required directories
+	*   Linking in required files
+	*     This can take several minutes for larger apps
+	*   Files and directories installed
+	
+	=================================================================
+	POST-INSTALL INSTRUCTIONS
+	=================================================================
+	
+	First Time Installation
+	=======================
+	PostfixAdmin can use either MySQL or PostgreSQL. It is up to you, or your
+	database administrator, to provide a database and a user with full access to
+	the database for use by PostfixAdmin.
+	
+	If you are unfamiliar with MySQL or PostgreSQL, we have some good starting
+	guides:
+	
+	  * http://www.gentoo.org/doc/en/mysql-howto.xml
+	  * https://wiki.gentoo.org/wiki/PostgreSQL
+	
+	Once the database and user have been allocated, you will need to provide the
+	details of this database and the associated user within the configuration file:
+	
+	  /var/www/mail.highball.org/htdocs/vhosts/highball.org/mail/config.inc.php
+
+Ok, failure #1.  Seems to have ignored my *-d* switch.
+
+	In the same configuration file, check for other settings that are relevant to
+	your setup. Once you're finished with your changes, make sure you set:
+	
+	  ['configured'] = true;
+	
+	To use Virtual Vacation, please read VIRTUAL_VACATION_INSTALL.
+	
+	Finally you should be able to complete the installation of postfixadmin by
+	pointing your browser at:
+	
+	  http://mail.highball.org//vhosts/highball.org/mail/setup.php
+
+Interesting, so *-d* is only a subdirectory within the vhost filesystem.
+
+	Postfix Admin contains 3 views of administration:
+	  1. Site Admin view, located at http://mail.highball.org//vhosts/highball.org/mail/admin/.
+	  2. Domain Admin view, located at http://mail.highball.org//vhosts/highball.org/mail/.
+	  3. User Admin View, located at http://mail.highball.org//vhosts/highball.org/mail/users/.
+	
+	In order to do the initial configuration you have to go to the Site Admin view.
+	
+	Upgrading
+	=========
+	When updating from older version of PostfixAdmin, make sure you backup your
+	database before you run the update script on your database.
+	
+	  * mysqldump -a -u root -p > /tmp/postfixadmin-backup.sql
+	  * pg_dump -U postgres -d postgres -C -f pa-db-backup.sql postfixadmin_db
+	
+	For update from version 1.5.x of PostfixAdmin:
+	  1. Please read the DOCUMENTS/UPGRADE.TXT
+	  2. Run: http://mail.highball.org//vhosts/highball.org/mail/setup.php
+	
+	=================================================================
+	
+	* Install completed - success
+
+## webapp-config uninstall postfixadmin
+
+	kennethd ~ # ls /var/www
+	localhost  mail.highball.org
+	kennethd ~ # webapp-config -h mail.highball.org -d /vhosts/highball.org/mail -C  postfixadmin 2.3.8
+	!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+	* Removing postfixadmin-2.3.8 from /var/www/mail.highball.org/htdocs/vhosts/highball.org/mail
+	*   Installed by root on 2015-11-16 12:02:19
+	*   Config files owned by 5002:5002
+	* Remove whatever is listed above by hand
+	kennethd ~ # rm -rf /var/www/mail.highball.org/
+
+
+
 
 
 
