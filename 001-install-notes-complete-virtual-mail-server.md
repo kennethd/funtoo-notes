@@ -1559,4 +1559,51 @@ It's a little disconcerting that I am not even getting logs -- do I have to inst
 	-rw-r--r-- 1 root    root    1.4M Nov 16 20:40 lastlog
 	-rw-rw---- 1 portage portage 226K Nov 16 23:19 emerge.log
 
+Indeed I do, http://www.funtoo.org/Installing_a_Logger
+
+## emerge a syslogd and logrotate
+
+	kennethd ~ # emerge --ask app-admin/syslog-ng
+	
+	Calculating dependencies... done!
+	[ebuild  N     ] dev-libs/eventlog-0.2.12  USE="-static-libs" 
+	[ebuild  N     ] dev-libs/json-c-0.12  USE="-doc -static-libs" ABI_X86="(64) -32 (-x32)" 
+	[ebuild  N     ] app-admin/syslog-ng-3.7.2  USE="ipv6 json python tcpd -amqp -caps -dbi -geoip -libressl -mongodb -pacct -redis -smtp -spoof-source -systemd" 
+	
+	>>> Installing (3 of 3) app-admin/syslog-ng-3.7.2::gentoo
+	 * For detailed documentation please see the upstream website:
+	 * http://www.balabit.com/sites/default/files/documents/syslog-ng-ose-3.7-guides/en/syslog-ng-ose-v3.7-guide-admin/html/index.html
+	
+	 * It is highly recommended that app-admin/logrotate be emerged to
+	 * manage the log files.  syslog-ng installs a file in /etc/logrotate.d
+	 * for logrotate to use.
+
+logrotate is a good idea:
+
+	kennethd ~ # emerge --ask app-admin/logrotate
+	
+	Calculating dependencies... done!
+	[ebuild  N     ] sys-process/cronbase-0.3.7-r1 
+	[ebuild  N     ] sys-process/cronie-1.5.0-r1  USE="inotify pam -anacron (-selinux)" 
+	[ebuild  N     ] virtual/cron-0-r1 
+	[ebuild  N     ] app-admin/logrotate-3.9.1-r1  USE="acl cron (-selinux)" 
+	
+	 * Messages for package app-admin/logrotate-3.9.1-r1:
+	
+	 * If you wish to have logrotate e-mail you updates, please
+	 * emerge virtual/mailx and configure logrotate in
+	 * /etc/logrotate.conf appropriately
+	 * 
+	 * Additionally, /etc/logrotate.conf may need to be modified
+	 * for your particular needs.  See man logrotate for details.
+
+Add them to default runlevel
+
+	kennethd ~ # rc-update add syslog-ng default
+	 * service syslog-ng added to runlevel default
+	kennethd ~ # rc-update add logrotate default
+	 * rc-update: service `logrotate' does not exist
+
+
+
 
