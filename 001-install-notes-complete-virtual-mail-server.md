@@ -2,7 +2,9 @@
 
 # Funtoo Notes
 
-These are notes from the initial install of *kennethd.host.funtoo.org*.
+These are notes from the initial install of *kennethd.host.funtoo.org*, including false starts and mistakes and how I worked around them.  If you intend to follow along, you should definitely read ahead and try to avoid some of those mistakes (it remains one long document to facilitate searching for mentions of a piece of the stack).  If I ever go through the process again, I will try to clean it up, for now it is more useful as a record of the exact commands I ran when I have to ask for help in IRC :) 
+
+By the end of this page I intend to have a working postfix with support for virtual domains and ssl, apache with https, postgres, postfixadmin, spamassassin, clamav, and of course a user account for myself, 
 
 This is my first experience with a Funtoo/Gentoo system, so a lot of rudimentary commands are documented as I learn them.
 
@@ -1169,14 +1171,392 @@ Restart apache
 	Enter it again: 
 	kennethd ~ # createdb -U postgres --owner=postfixadmin postfix
 
-Edit `/vhosts/highball.org/mail/htdocs/postfixadmin/config.inc.php` and set `$CONF['configured'] = true;` and change "mysql" to "pgsql".
+Edit `/vhosts/highball.org/mail/htdocs/postfixadmin/config.inc.php` and set `$CONF['configured'] = true;` and change "mysql" to "pgsql".  You might also want to do;
+
+	:%s/change-this-to-your.domain.tld/highball.org/g
 
 Visit https://mail.highball.org/postfixadmin/setup.php.  It will create the database and prompt you for a setup password, which you should save to the config.inc.php file.
 
 Navigate again to https://mail.highball.org/postfixadmin/setup.php and you will be prompted to create a superuser.
 
+Once a superuser is created, you can log in @ https://mail.highball.org/postfixadmin/admin/
+
+## Drop and re-create db
+
+After the above procedure, I ended up with a database correctly owned by **postfixadmin**:
+
+	postfix=> \l
+									  List of databases
+	   Name    |    Owner     | Encoding | Collate |    Ctype    |   Access privileges   
+	-----------+--------------+----------+---------+-------------+-----------------------
+	 postfix   | postfixadmin | UTF8     | C       | en_US.UTF-8 | 
+	 postgres  | postgres     | UTF8     | C       | en_US.UTF-8 | =Tc/postgres         +
+			   |              |          |         |             | postgres=CTc/postgres+
+			   |              |          |         |             | kenneth=c/postgres
+
+But all of the tables were created by the **postfix** user:
+
+	postfix=> \dt
+					List of relations
+	 Schema |         Name          | Type  |  Owner  
+	--------+-----------------------+-------+---------
+	 public | admin                 | table | postfix
+	 public | alias                 | table | postfix
+	 public | alias_domain          | table | postfix
+	 public | config                | table | postfix
+	 public | domain                | table | postfix
+	 public | domain_admins         | table | postfix
+	 public | fetchmail             | table | postfix
+	 public | log                   | table | postfix
+	 public | mailbox               | table | postfix
+	 public | quota                 | table | postfix
+	 public | quota2                | table | postfix
+	 public | vacation              | table | postfix
+	 public | vacation_notification | table | postfix
+
+Most troubling is the fact that the **postfix** user shouldn't have had permission to do that -- probably a mistake left over from my initial attempt up in the Re-emerge postfixadmin section when postgres complained of missing accounts & schemas.  Unless those are the default permissions and I forgot to run the GRANTS which function to restrict access, rather than create it?
+
+Indeed, logging in as **postfix** I have permission to drop tables:
+
+	postfix=> drop table vacation cascade ;
+	NOTICE:  drop cascades to constraint vacation_notification_on_vacation_fkey on table vacation_notification
+	DROP TABLE
+
+Time to start over entirely with the postfix database and users, I think.
+
+### Drop database and delete users
+
+	kennethd ~ # dropdb -U postgres postfix
+	dropdb: database removal failed: ERROR:  database "postfix" is being accessed by other users
+	DETAIL:  There are 5 other sessions using the database.
+	kennethd ~ # /etc/init.d/apache2 stop 
+	 * Stopping apache2 ...  [ ok ]
+	kennethd ~ # dropdb -U postgres postfix
+
+Do users in postgres exist outside of their database?  I ran createuser before running createdb so the entity must exist somewhere... will the permissions against the *name* of a dropped db persist to a new db created with the same name?
+
+Just in case:
+
+	kennethd ~ # psql -U postgres postgres
+	psql (9.4.5)
+	Type "help" for help.
+	
+	postgres=# DROP USER postfix ; 
+	DROP ROLE
+
+### Create anew
+
+	kennethd ~ # createdb -U postgres --owner=postfixadmin postfix
+	kennethd ~ # createuser -U postgres --no-createdb --no-createrole --pwprompt --no-superuser postfix 
+	Enter password for new role: 
+	Enter it again: 
+
+As postfixadmin grant SELECT to some tables it needs access to:
+
+	kennethd ~ # psql -U postfixadmin postfix
+	psql (9.4.5)
+	Type "help" for help.
+	
+	postfix=> GRANT SELECT ON alias TO postfix;
+	ERROR:  relation "alias" does not exist
+
+Ah yes, here again
+
+### Update postfixadmin setup script to login as postfixadmin
+
+This time, configure setup.php to create the tables as **postfixadmin** user:
+
+	 51 #$CONF['database_user'] = 'postfix';
+	 52 #$CONF['database_password'] = 'xxxxxxxx';
+	 53 $CONF['database_user'] = 'postfixadmin';
+	 54 $CONF['database_password'] = 'zzzzzzzz';
+
+Navigate to setup.php, create the superuser again (with offsite email address), and hopefully it creates the db:
+
+kennethd ~ # psql -U postfixadmin postfix
+psql (9.4.5)
+Type "help" for help.
+
+	postfix=> \dt
+					   List of relations
+	 Schema |         Name          | Type  |    Owner     
+	--------+-----------------------+-------+--------------
+	 public | admin                 | table | postfixadmin
+	 public | alias                 | table | postfixadmin
+	 public | alias_domain          | table | postfixadmin
+	 public | config                | table | postfixadmin
+	 public | domain                | table | postfixadmin
+	 public | domain_admins         | table | postfixadmin
+	 public | fetchmail             | table | postfixadmin
+	 public | log                   | table | postfixadmin
+	 public | mailbox               | table | postfixadmin
+	 public | quota                 | table | postfixadmin
+	 public | quota2                | table | postfixadmin
+	 public | vacation              | table | postfixadmin
+	 public | vacation_notification | table | postfixadmin
+	(13 rows)
+
+Once again:
+
+	postfix=> GRANT SELECT ON alias TO postfix;
+	GRANT
+	postfix=> GRANT SELECT ON domain TO postfix;
+	GRANT
+	postfix=> GRANT SELECT ON mailbox TO postfix;
+	GRANT
+
+Log in as **postfix** to try things out and everything looks OK.  I think it was just a case of not having run the GRANTs earlier, and forgetting where I was after being interrupted by having to go to work :( 
+
+	kennethd ~ # psql -U postfix postfix
+	psql (9.4.5)
+	Type "help" for help.
+	
+	postfix=> CREATE DATABASE postfixtest ; 
+	ERROR:  permission denied to create database
+	postfix=> \dt 
+					   List of relations
+	 Schema |         Name          | Type  |    Owner     
+	--------+-----------------------+-------+--------------
+	 public | admin                 | table | postfixadmin
+	 public | alias                 | table | postfixadmin
+	 public | alias_domain          | table | postfixadmin
+	 public | config                | table | postfixadmin
+	 public | domain                | table | postfixadmin
+	 public | domain_admins         | table | postfixadmin
+	 public | fetchmail             | table | postfixadmin
+	 public | log                   | table | postfixadmin
+	 public | mailbox               | table | postfixadmin
+	 public | quota                 | table | postfixadmin
+	 public | quota2                | table | postfixadmin
+	 public | vacation              | table | postfixadmin
+	 public | vacation_notification | table | postfixadmin
+	(13 rows)
+	
+	postfix=> select * from vacation ; 
+	ERROR:  permission denied for relation vacation
+	postfix=> drop table vacation ; 
+	ERROR:  must be owner of relation vacation
+	postfix=> select * from alias ; 
+	 address | goto | domain | created | modified | active 
+	---------+------+--------+---------+----------+--------
+	(0 rows)
+
+## Configure postfix to use postgres db
+
+Still on https://wiki.gentoo.org/wiki/Complete_Virtual_Mail_Server/Postfix_to_Database, which says:
+
+*"Linking postfix to a database isn't that special, postfix just executes predefined SQL routines. These SQL queries will be stored in a file per query in a directory."*
+
+And: *"Note: In the following files, the variable 'hosts' is commented on purpose. When no hosts are defined, the local unix socket is used."*
+
+	kennethd ~ # mkdir /etc/postfix/pgsql
+	kennethd ~ # vim /etc/postfix/pgsql/virtual_mailbox_domains.cf
+
+```ini
+# virtual_mailbox_domains.cf
+user            = postfix
+password        = $password
+dbname          = postfix
+#hosts          = localhost
+query           = SELECT description FROM domain WHERE domain = '%s' AND backupmx = '0' AND active = '1';
+```
+
+	kennethd ~ # vim /etc/postfix/pgsql/virtual_mailbox_maps.cf
+
+```ini
+# virtual_mailbox_maps.cf
+user            = postfix
+password        = $password
+dbname          = postfix
+#hosts          = localhost
+query           = SELECT maildir FROM mailbox WHERE local_part='%u' AND domain='%d' AND active='1';
+```
+
+	kennethd ~ # vim /etc/postfix/pgsql/virtual_alias_maps.cf
+
+```ini
+# virtual_alias_maps.cf
+user            = postfix
+password        = $password
+dbname          = postfix
+#hosts          = localhost
+query           = SELECT goto FROM alias WHERE address='%s' AND active='1';
+```
+
+And another note: *"postfixadmin creates an alias for each user. This is not required for postfix to function properly, it is something needed for postfixadmin."*
 
 
+### verify syntax and permissions
 
+	kennethd ~ # psql -U postfix postfix
+	psql (9.4.5)
+	Type "help" for help.
+
+	postfix=> SELECT description FROM domain WHERE domain = 'example.com' AND backupmx = '0' AND active = '1';
+	 description 
+	-------------
+	(0 rows)
+
+	postfix=> SELECT maildir FROM mailbox WHERE local_part='testuser' AND domain='example.com' AND active='1';
+	 maildir 
+	---------
+	(0 rows)
+
+	postfix=> SELECT goto FROM alias WHERE address='testuser@example.com' AND active='1';
+	 goto 
+	------
+	(0 rows)
+
+## Restrict access to configs
+
+These files contain passwords
+
+	kennethd ~ # chown root:postfix -R /etc/postfix/
+	kennethd ~ # chmod 640 /etc/postfix/{main,master}.cf
+
+## Configure postfix to use new queries
+
+Append a few more lines to `main.cf`
+
+	kennethd ~ # vim /etc/postfix/main.cf 
+
+```ini
+# A list of all virtual domains serviced by this instance of postfix.
+virtual_mailbox_domains = pgsql:/etc/postfix/pgsql/virtual_mailbox_domains.cf
+# Look up the mailbox location based on the email address received.
+virtual_mailbox_maps = pgsql:/etc/postfix/pgsql/virtual_mailbox_maps.cf
+# Any aliases that are supported by this system
+virtual_alias_maps = pgsql:/etc/postfix/pgsql/virtual_alias_maps.cf
+```
+
+*"It is recommended that VIRTUAL_README, included with the postfix docs, is read for more information"*
+
+## restart postfix
+
+	kennethd ~ # /etc/init.d/postfix restart
+	 * Stopping postfix (/etc/postfix) ...
+	postfix: Postfix is running with backwards-compatible default settings
+	postfix: See http://www.postfix.org/COMPATIBILITY_README.html for details
+	postfix: To disable backwards compatibility use "postconf compatibility_level=2" and "postfix reload"
+	postfix/postfix-script: stopping the Postfix mail system [ ok ]
+	 * Starting postfix (/etc/postfix) ...
+	postfix: Postfix is running with backwards-compatible default settings
+	postfix: See http://www.postfix.org/COMPATIBILITY_README.html for details
+	postfix: To disable backwards compatibility use "postconf compatibility_level=2" and "postfix reload"
+	postfix/postfix-script: starting the Postfix mail system [ ok ]
+
+## review postfix configuration
+
+Following https://wiki.gentoo.org/wiki/Postfix
+
+TODO This page recommends enabling **vda** in *package.use*, whereas the first document recommended against it.
+
+### /etc/conf.d/net
+
+The Gentoo wiki Postfix page recommends putting my FQDN in `/etc/conf.d/net`, but that file does not exist.  Is this one of the areas where Funtoo differs from Gentoo?  I couldn't find much on the subject via Google, only this one page: http://www.funtoo.org/Package:Net-tools which agrees: *"/etc/conf.d/net is where your domain name is defined"*
+
+	kennethd ~ # echo 'dns_domain_lo="kennethd.host.funtoo.org"' >> /etc/conf.d/net
+	kennethd ~ # hostname --fqdn 
+	kennethd.host.funtoo.org
+
+### /etc/postfix/main.cf
+
+For the purposes of the MTA, I think I want to use a domain under my control
+
+	# INTERNET HOST AND DOMAIN NAMES
+	#~
+	# The myhostname parameter specifies the internet hostname of this
+	# mail system. The default is to use the fully-qualified domain name
+	# from gethostname(). $myhostname is used as a default value for many
+	# other configuration parameters.
+	#
+	#myhostname = host.domain.tld
+	#myhostname = virtual.domain.tld
+	myhostname = highball.org
+	
+	# The mydomain parameter specifies the local internet domain name.
+	# The default is to use $myhostname minus the first component.
+	# $mydomain is used as a default value for many other configuration
+	# parameters.
+	#
+	#mydomain = domain.tld
+	mydomain = highball.org
+
+Require authentication for ALL servers that are not localhost:
+
+	# The mynetworks parameter specifies the list of "trusted" SMTP
+	# clients that have more privileges than "strangers".
+	#
+	# In particular, "trusted" SMTP clients are allowed to relay mail
+	# through Postfix.  See the smtpd_recipient_restrictions parameter
+	# in postconf(5).
+	#
+	# You can specify the list of "trusted" network addresses by hand
+	# or you can let Postfix do it for you (which is the default).
+	#
+	# By default (mynetworks_style = subnet), Postfix "trusts" SMTP
+	# clients in the same IP subnetworks as the local machine.
+	# On Linux, this does works correctly only with interfaces specified
+	# with the "ifconfig" command.
+	#~
+	# Specify "mynetworks_style = class" when Postfix should "trust" SMTP
+	# clients in the same IP class A/B/C networks as the local machine.
+	# Don't do this with a dialup site - it would cause Postfix to "trust"
+	# your entire provider's network.  Instead, specify an explicit
+	# mynetworks list by hand, as described below.
+	#~~
+	# Specify "mynetworks_style = host" when Postfix should "trust"
+	# only the local machine.
+	#~
+	#mynetworks_style = class
+	#mynetworks_style = subnet
+	mynetworks_style = host
+
+All web developers need unlimited test email addresses
+
+	# ADDRESS EXTENSIONS (e.g., user+foo)
+	#
+	# The recipient_delimiter parameter specifies the separator between
+	# user names and address extensions (user+foo). See canonical(5),
+	# local(8), relocated(5) and virtual(5) for the effects this has on
+	# aliases, canonical, virtual, relocated and .forward file lookups.
+	# Basically, the software tries user+foo and .forward+foo before
+	# trying user and .forward.
+	#
+	recipient_delimiter = +
+
+## restart postfix
+
+	kennethd ~ # /etc/init.d/postfix stop 
+	 * Caching service dependencies ... [ ok ]
+	 * Stopping postfix (/etc/postfix) ...
+	postfix: Postfix is running with backwards-compatible default settings
+	postfix: See http://www.postfix.org/COMPATIBILITY_README.html for details
+	postfix: To disable backwards compatibility use "postconf compatibility_level=2" and "postfix reload"
+	postfix/postfix-script: stopping the Postfix mail system [ ok ]
+	kennethd ~ # /etc/init.d/postfix start 
+	 * Starting postfix (/etc/postfix) ...
+	postfix: Postfix is running with backwards-compatible default settings
+	postfix: See http://www.postfix.org/COMPATIBILITY_README.html for details
+	postfix: To disable backwards compatibility use "postconf compatibility_level=2" and "postfix reload"
+	postfix/postfix-script: starting the Postfix mail system [ ok ]
+	kennethd ~ # lsof -i | grep LISTEN
+
+Still nothing listening on 25
+
+It's a little disconcerting that I am not even getting logs -- do I have to install a syslog?
+
+	kennethd ~ # ls -lhrt /var/log 
+	total 364K
+	drwxrws--- 3 portage portage 4.0K Nov 10 19:53 portage
+	drwxr-xr-x 2 mysql   mysql   4.0K Nov 11 19:35 mysql
+	drwx------ 2 root    root    4.0K Nov 11 19:38 webmin
+	drwxr-xr-x 2 clamav  clamav  4.0K Nov 11 21:34 clamav
+	drwxr-x--- 2 apache  apache  4.0K Nov 12 14:04 apache2
+	-rw-rw---- 1 portage portage  792 Nov 12 23:43 emerge-fetch.log
+	-rw------- 1 root    root    313K Nov 14 20:40 tallylog
+	-rw-rw-r-- 1 root    utmp     80K Nov 16 20:40 wtmp
+	-rw-r--r-- 1 root    root    1.4M Nov 16 20:40 lastlog
+	-rw-rw---- 1 portage portage 226K Nov 16 23:19 emerge.log
 
 
