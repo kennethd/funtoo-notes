@@ -1127,6 +1127,8 @@ I made one other change to the file, changing "conf" to "etc":
 	
 	* Install completed - success
 
+Also edit `/etc/php/apache2-php5.5/php.ini` to set **date.timezone = "America/New_York"**, or postfixadmin will print errors to every page.
+
 ## Apache virtualhost for webmail
 
 Again edit `/etc/apache2/vhosts.d/highball.org.conf` to add a second VirtualHost, this time for mail.highball.org:
@@ -1603,6 +1605,53 @@ Add them to default runlevel
 	 * service syslog-ng added to runlevel default
 	kennethd ~ # rc-update add logrotate default
 	 * rc-update: service `logrotate' does not exist
+
+TODO: make sure logrotate starts
+
+	kennethd vhosts.d # /etc/init.d/syslog-ng start
+
+Still, starting postfix works, but does not cause it to listen on port 25.  I notice the **smtp** *USE* flag is absent, add that & do another `emerge --update --deep --newuse @world` causes 15 packages to rebuild
+
+	>>> Installing (15 of 15) app-admin/syslog-ng-3.7.2::gentoo
+	 * For detailed documentation please see the upstream website:
+	 * http://www.balabit.com/sites/default/files/documents/syslog-ng-ose-3.7-guides/en/syslog-ng-ose-v3.7-guide-admin/html/index.html
+	
+	 * Messages for package sys-apps/util-linux-2.27.1:
+	
+	 * The mesg/wall/write tools have been disabled due to USE=-tty-helpers.
+	
+	 * Messages for package dev-db/mysql-5.6.27-r1:
+	
+	 * MySQL MY_DATADIR is /var/lib/mysql
+	 * You might want to run:
+	 * "emerge --config =dev-db/mysql-5.6.27-r1"
+	 * if this is a new install.
+	 * If you are upgrading major versions, you should run the
+	 * mysql_upgrade tool.
+	
+	 * Messages for package net-libs/courier-authlib-0.66.4:
+	
+	 * The dev-tcltk/expect package is not installed.
+	 * Without it, you will not be able to change system login passwords.
+	 * However non-system authentication modules (LDAP, MySQL, PostgreSQL,
+	 * and others) will work just fine.
+	 * Both gdbm and berkdb selected. Using gdbm.
+	
+	 * Messages for package dev-vcs/git-2.6.3:
+	
+	 * These additional scripts need some dependencies:
+	 *   git-quiltimport  : dev-util/quilt
+	 *   git-instaweb     : || ( www-servers/lighttpd www-servers/apache www-servers/nginx )
+	
+	 * Messages for package app-admin/syslog-ng-3.7.2:
+	
+	 * For detailed documentation please see the upstream website:
+	 * http://www.balabit.com/sites/default/files/documents/syslog-ng-ose-3.7-guides/en/syslog-ng-ose-v3.7-guide-admin/html/index.html
+	>>> Auto-cleaning packages...
+
+Take note of the **mysql** note there, remember to do that before actually using it for anything
+
+After restarting postfix I still have nothing listening on 25 though.
 
 
 
