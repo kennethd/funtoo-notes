@@ -1653,6 +1653,18 @@ Take note of the **mysql** note there, remember to do that before actually using
 
 After restarting postfix I still have nothing listening on 25 though.
 
+## uncomment the inet smtp config
 
+The default postfix install only listend locally via a unix socket.  If you want postfix to listen on port 25 you have to uncomment the "inet" line in `/etc/postfix/master.cf`:
+
+	# ==========================================================================
+	# service type  private unpriv  chroot  wakeup  maxproc command + args
+	#               (yes)   (yes)   (no)    (never) (100)
+	# ==========================================================================
+	smtp      unix  n       -       y       -       -       smtpd
+	smtp      inet  n       -       n       -       1       postscreen
+	smtpd     pass  -       -       n       -       -       smtpd
+
+Reload postfix (`/etc/init.d/postfix reload`) and it will work.  I can't believe how long it took me to find that.
 
 
