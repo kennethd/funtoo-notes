@@ -1667,4 +1667,46 @@ The default postfix install only listend locally via a unix socket.  If you want
 
 Reload postfix (`/etc/init.d/postfix reload`) and it will work.  I can't believe how long it took me to find that.
 
+## test postfix
+
+Back @ https://wiki.gentoo.org/wiki/Complete_Virtual_Mail_Server/Postfix_to_Database
+
+	kenneth@kennethd ~ $ telnet localhost 25 
+	Trying ::1...
+	telnet: connect to address ::1: Connection refused
+	Trying 127.0.0.1...
+	Connected to localhost.
+	Escape character is '^]'.
+	220 highball.org ESMTP Postfix
+	mail from:kenneth@ylayali.net
+	250 2.1.0 Ok
+	rcpt to:kld@highball.org
+	250 2.1.5 Ok
+	data
+	354 End data with <CR><LF>.<CR><LF>
+	
+	test 
+	
+	.
+	250 2.0.0 Ok: queued as 06AC41411EC
+	quit
+	221 2.0.0 Bye
+	Connection closed by foreign host.
+
+Tail the log (still logging to `/var/log/messages` in my case, TODO configure syslog to use mail.log)
+
+	Nov 18 19:23:10 kennethd postfix/postscreen[23712]: CONNECT from [127.0.0.1]:44066 to [127.0.0.1]:25
+	Nov 18 19:23:10 kennethd postfix/postscreen[23712]: WHITELISTED [127.0.0.1]:44066
+	Nov 18 19:23:10 kennethd postfix/smtpd[23714]: connect from kennethd.host.funtoo.org[127.0.0.1]
+	Nov 18 19:24:12 kennethd postfix/trivial-rewrite[23718]: warning: table "pgsql:/etc/postfix/pgsql/virtual_mailbox_domains.cf": empty lookup result for: "highball.org" -- ignored
+	Nov 18 19:24:12 kennethd postfix/smtpd[23714]: 06AC41411EC: client=kennethd.host.funtoo.org[127.0.0.1]
+	Nov 18 19:24:35 kennethd postfix/cleanup[23725]: 06AC41411EC: message-id=<20151118192412.06AC41411EC@highball.org>
+	Nov 18 19:24:35 kennethd postfix/qmgr[20374]: 06AC41411EC: from=<kenneth@ylayali.net>, size=341, nrcpt=1 (queue active)
+	Nov 18 19:24:35 kennethd postfix/trivial-rewrite[23718]: warning: table "pgsql:/etc/postfix/pgsql/virtual_mailbox_domains.cf": empty lookup result for: "highball.org" -- ignored
+	Nov 18 19:24:35 kennethd postfix/local[23730]: 06AC41411EC: to=<kenneth@highball.org>, orig_to=<kld@highball.org>, relay=local, delay=53, delays=53/0.01/0/0.01, dsn=2.0.0, status=sent (delivered to maildir)
+	Nov 18 19:24:35 kennethd postfix/qmgr[20374]: 06AC41411EC: removed
+
+Check the Maildir for delivery:
+
+
 
