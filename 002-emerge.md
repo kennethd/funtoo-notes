@@ -221,11 +221,211 @@ kenneth@kennethd ~ $ sudo freshclam
 
 
 
-kenneth@kennethd ~ $ sudo emerge --pretend --update --newuse --deep --with-bdeps=y @world
+kenneth@kennethd ~ $ sudo emerge --update --newuse --deep --with-bdeps=y @world
+
+(226 packages updated)
+
+kenneth@kennethd ~ $ sudo emerge -av --depclean
+
+	>>> These are the packages that would be unmerged:
+
+Note, the following list is followed by the message:
+
+	>>> 'Selected' packages are slated for removal.
+	>>> 'Protected' and 'omitted' packages will not be removed.
+
+I have no protected packages, but some are omitted -- perhaps due to specific version dependencies:
+
+	 dev-python/characteristic
+		selected: 14.3.0-r1 
+	   protected: none 
+		 omitted: none 
+
+looks harmless to remove
+
+	 virtual/perl-Attribute-Handlers
+		selected: 0.970.0 
+	   protected: none 
+		 omitted: none 
+
+looks harmless to remove
+
+	 app-arch/rpm2targz
+		selected: 9.0.0.5g 
+	   protected: none 
+		 omitted: none 
+
+looks harmless to remove
+
+	 app-admin/python-updater
+		selected: 0.13 
+	   protected: none 
+		 omitted: none 
+
+deprecated, see http://www.funtoo.org/News:Python_Updater_Deprecation
+
+"As some users have noticed, the python-updater package, a tool for scanning and rebuilding python packages after major Python version updates is now removed. As of Nov 28, python-updater is no longer required. After merging new version of python ebuilds, the following steps are required:
+
+	Portage rebuild
+	# emerge --oneshot sys-apps/portage
+
+This ensures that unconditional dependencies are properly installed."
+
+
+That page also refers to http://www.funtoo.org/News:Unfork_Tree_is_Live!
+
+note point 3: "Try updating @system first, before attempting @world."; Oops.
+
+
+	 dev-db/tinycdb
+		selected: 0.77-r2 
+	   protected: none 
+		 omitted: none 
+
+Can always reinstall if needed
+
+	 mail-client/roundcube
+		selected: 1.0.6 
+	   protected: none 
+		 omitted: 1.2.0 
+
+This looks like I have "pinned" roundcube to 1.0.6, but 1.2.0 is available
+
+	 dev-python/packaging
+		selected: 15.3-r2 
+	   protected: none 
+		 omitted: none 
+
+Probably part of the Python kerfluffle above
+
+	 dev-php/PEAR-Crypt_GPG
+		selected: 1.3.2 
+	   protected: none 
+		 omitted: none 
+
+Doesn't seem system-debilitating, I haven't paid attention much to PHP library
+deprecations, might have been required by previous version of roundcube?
+
+	 virtual/httpd-php
+		selected: 5.5 
+	   protected: none 
+		 omitted: 7.0 
+
+PHP pinned to 5.5?  It seems so:
+kenneth@kennethd ~ $ php --version 
+PHP 5.5.30-pl0-gentoo (cli) (built: Nov 11 2015 21:39:58) 
+
+	 dev-php/PEAR-Net_Sieve
+		selected: 1.3.3 
+	   protected: none 
+		 omitted: none 
+
+Doesn't seem system-debilitating, I haven't paid attention much to PHP library
+deprecations, might have been required by previous version of roundcube?
+
+	 dev-lang/python
+		selected: 3.3.5-r8 
+	   protected: none 
+		 omitted: 2.7.12 3.4.5 
+
+The Python news page above mentions the version of python used by system tools
+is now 3.3, it looks like my default python is 2.7:
+
+kenneth@kennethd ~ $ python --version 
+Python 2.7.12
+
+	 dev-lang/php
+		selected: 5.5.30 
+	   protected: none 
+		 omitted: 7.0.9-r2 
+
+PHP pinned to 5.5?  It seems so:
+kenneth@kennethd ~ $ php --version 
+PHP 5.5.30-pl0-gentoo (cli) (built: Nov 11 2015 21:39:58) 
+
+	 sys-libs/db
+		selected: 4.8.30-r2 
+	   protected: none 
+		 omitted: 5.3.28-r3 6.0.30-r2 
+
+Not sure what this package is, I expect it is the specific version something else depends on
+
+	 dev-db/postgresql
+		selected: 9.4.5-r1 
+	   protected: none 
+		 omitted: 9.5.3 
+
+Postgres is pinned to specific version too:
+
+	kenneth@kennethd ~ $ psql --version 
+	psql (PostgreSQL) 9.4.5
+
+It was originally installed with:
+
+	kennethd ~ # emerge --config dev-db/postgresql:9.4
+
+Though this doesn't explain to me why none of the following have been installed
+(all of which are listed by `equery g postgresql:9.4`):
+
+	dev-db/postgresql-9.4.5-r2
+	dev-db/postgresql-9.4.6
+	dev-db/postgresql-9.4.7
+	dev-db/postgresql-9.4.8
+
+Current USE may be interesting:
+
+kenneth@kennethd ~ $  emerge --info | grep ^USE
+!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+USE="acl amd64 apache2 authdaemond berkdb bzip2 clamdtop cracklib crypt cxx gdbm iconv icu imap ipv6 maildir mmx modules mudflap multilib mysql ncurses nls nptl openmp pam pcre postgres python readline resolvconf sasl smtp spamassassin spell sse sse2 ssl tcpd unicode urandom vhosts xattr xml zlib" ABI_X86="64" APACHE2_MODULES="actions alias auth_basic authn_alias authn_anon authn_dbm authn_default authn_file authz_dbm authz_default authz_groupfile authz_host authz_owner authz_user autoindex cache cgi cgid dav dav_fs dav_lock deflate dir disk_cache env expires ext_filter file_cache filter headers include info log_config logio mem_cache mime mime_magic negotiation rewrite setenvif speling status unique_id userdir usertrack vhost_alias authn_core authz_core socache_shmcb unixd" CALLIGRA_FEATURES="kexi words flow plan sheets stage tables krita karbon braindump author" CAMERAS="ptp2" COLLECTD_PLUGINS="df interface irq load memory rrdtool swap syslog" CPU_FLAGS_X86="aes mmx mmxext popcnt sse sse2 sse3 sse4_1 sse4_2 ssse3" ELIBC="glibc" GPSD_PROTOCOLS="ashtech aivdm earthmate evermore fv18 garmin garmintxt gpsclock itrax mtk3301 nmea ntrip navcom oceanserver oldstyle oncore rtcm104v2 rtcm104v3 sirf superstar2 timing tsip tripmate tnt ublox ubx" GRUB_PLATFORMS="efi-64 pc" INPUT_DEVICES="evdev synaptics keyboard mouse" KERNEL="linux" LCD_DEVICES="bayrad cfontz cfontz633 glk hd44780 lb216 lcdm001 mtxorb ncurses text" LIBREOFFICE_EXTENSIONS="presenter-console presenter-minimizer" OFFICE_IMPLEMENTATION="libreoffice" PHP_TARGETS="php5-6 php5-5" PYTHON_SINGLE_TARGET="python3_4" PYTHON_TARGETS="python2_7 python3_4" QEMU_SOFTMMU_TARGETS="i386 x86_64" QEMU_USER_TARGETS="i386 x86_64" RUBY_TARGETS="ruby20 ruby21 ruby22" USERLAND="GNU" XTABLES_ADDONS="quota2 psd pknock lscan length2 ipv4options ipset ipp2p iface geoip fuzzy condition tee tarpit sysrq steal rawnat logmark ipmark dhcpmac delude chaos account"
+
+
+Before continuing with that, I want to run the recommended @system update from the wiki.
+
+Oh my, more conflicts...
+
+kenneth@kennethd ~ $ sudo emerge -auDN @system 
+
+	WARNING: One or more updates/rebuilds have been skipped due to a dependency conflict:
+
+	net-libs/courier-unicode:0
+
+	  (net-libs/courier-unicode-1.4:0/0::gentoo, ebuild scheduled for merge) conflicts with
+		=net-libs/courier-unicode-1.3 required by (net-libs/courier-authlib-0.66.4:0/0::gentoo, installed)
+		^                         ^^^
+
+Indeed, it depends on the earlier version explicitly:
+
+	 * dependency graph for net-libs/courier-authlib-0.66.4
+	 `--  net-libs/courier-authlib-0.66.4  amd64 
+	   `--  net-mail/mailbase-1.1  (net-mail/mailbase) amd64 
+	   `--  net-libs/courier-unicode-1.3  (=net-libs/courier-unicode-1.3) amd64 
+	   `--  sys-libs/gdbm-1.12  (sys-libs/gdbm) ~amd64 
+	   `--  sys-libs/db-6.0.30-r2  (sys-libs/db) unknown 
+	   `--  dev-libs/openssl-1.0.2h-r2  (dev-libs/openssl) amd64 
+	   `--  dev-libs/libressl-2.4.2  (dev-libs/libressl) ~amd64 
+	   `--  net-nds/openldap-2.4.44  (>=net-nds/openldap-1.2.11) ~amd64 
+	   `--  virtual/mysql-5.6-r8  (virtual/mysql) ~amd64 
+	   `--  virtual/pam-0-r1  (virtual/pam) unknown 
+	   `--  dev-db/postgresql-9.5.3  (dev-db/postgresql) ~amd64 
+	   `--  dev-db/sqlite-3.13.0  (dev-db/sqlite) ~amd64 
+	[ net-libs/courier-authlib-0.66.4 stats: packages (12), max depth (1) ]
 
 
 
 
 
+kenneth@kennethd ~ $ sudo emerge --sync 
+!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+>>> Syncing repository 'gentoo' into '/var/src/portage'...
+/usr/bin/git pull
+error: cannot open .git/FETCH_HEAD: Read-only file system
+!!! git pull error in /var/src/portage
+q: Updating ebuild cache in /var/src/portage ... 
+q: Finished 38474 entries in 4.427181 seconds
+!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+
+ * IMPORTANT: 11 config files in '/etc' need updating.
+ * See the CONFIGURATION FILES section of the emerge
+ * man page to learn how to update config files.
 
 
