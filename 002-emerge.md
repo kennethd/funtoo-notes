@@ -397,35 +397,289 @@ Indeed, it depends on the earlier version explicitly:
 
 	 * dependency graph for net-libs/courier-authlib-0.66.4
 	 `--  net-libs/courier-authlib-0.66.4  amd64 
-	   `--  net-mail/mailbase-1.1  (net-mail/mailbase) amd64 
 	   `--  net-libs/courier-unicode-1.3  (=net-libs/courier-unicode-1.3) amd64 
-	   `--  sys-libs/gdbm-1.12  (sys-libs/gdbm) ~amd64 
 	   `--  sys-libs/db-6.0.30-r2  (sys-libs/db) unknown 
-	   `--  dev-libs/openssl-1.0.2h-r2  (dev-libs/openssl) amd64 
-	   `--  dev-libs/libressl-2.4.2  (dev-libs/libressl) ~amd64 
-	   `--  net-nds/openldap-2.4.44  (>=net-nds/openldap-1.2.11) ~amd64 
-	   `--  virtual/mysql-5.6-r8  (virtual/mysql) ~amd64 
-	   `--  virtual/pam-0-r1  (virtual/pam) unknown 
-	   `--  dev-db/postgresql-9.5.3  (dev-db/postgresql) ~amd64 
-	   `--  dev-db/sqlite-3.13.0  (dev-db/sqlite) ~amd64 
 	[ net-libs/courier-authlib-0.66.4 stats: packages (12), max depth (1) ]
 
+while:
+
+kenneth@kennethd ~ $ equery g net-mail/courier-imap
+
+	 * dependency graph for net-mail/courier-imap-4.16.2-r1
+	 `--  net-mail/courier-imap-4.16.2-r1  ~amd64 
+	   `--  net-libs/courier-authlib-0.66.4  (>=net-libs/courier-authlib-0.61) amd64 
+	   `--  net-libs/courier-unicode-1.4  (>=net-libs/courier-unicode-1.3) ~amd64 
+
+though that ">=net-libs/courier-unicode-1.13" might suggest pinning it @ 1.13 might work for everyone
+
+kenneth@kennethd ~ $ equery list -po net-libs/courier-unicode
+	 * Searching for courier-unicode in net-libs ...
+	[-P-] [  ] net-libs/courier-unicode-1.1:0
+	[IP-] [  ] net-libs/courier-unicode-1.3:0
+	[-P-] [  ] net-libs/courier-unicode-1.4:0
+
+it seems a bad idea to pollute the world file, but as an experiment:
+
+kenneth@kennethd ~ $ sudo emerge --noreplace --ask =net-libs/courier-unicode-1.3 
+
+	These are the packages that would be merged, in order:
+
+	 * net-libs/courier-unicode
+
+	Would you like to add these packages to your world favorites? [Yes/No] Yes
+	>>> Recording net-libs/courier-unicode in "world" favorites file...
+
+kenneth@kennethd ~ $ sudo emerge -auDN @system 
+
+	WARNING: One or more updates/rebuilds have been skipped due to a dependency conflict:
+
+	net-libs/courier-unicode:0
+
+	  (net-libs/courier-unicode-1.4:0/0::gentoo, ebuild scheduled for merge) conflicts with
+		=net-libs/courier-unicode-1.3 required by (net-libs/courier-authlib-0.66.4:0/0::gentoo, installed)
+
+No change.
+
+Doesn't look like I successfully "pinned" the package to 1.3 in the world file either:
+
+kenneth@kennethd ~ $ grep courier /var/lib/portage/world
+	net-libs/courier-authlib
+	net-libs/courier-unicode
+	net-mail/courier-imap
+
+Checking my earlier docs, I haven't gotten around to doing anything special to
+configure Courier, so I amm temporarily removing it:
+
+kenneth@kennethd ~ $ sudo emerge -avC net-libs/courier-authlib net-mail/courier-imap
+
+trying again...
+
+kenneth@kennethd ~ $  sudo emerge -auDN @system 
+
+These are the packages that would be merged, in order:
+
+Calculating dependencies... done!
+[ebuild  N     ] net-libs/courier-authlib-0.66.4  USE="berkdb crypt gdbm mysql pam postgres -debug -ldap -libressl -sqlite -static-libs" 
+[ebuild  N     ] net-mail/courier-imap-4.16.2-r1  USE="berkdb gdbm ipv6 -debug -fam -gnutls -libressl (-selinux) -trashquota" 
 
 
+hmmm...
 
+== MASKING VERSIONS >1.3
 
-kenneth@kennethd ~ $ sudo emerge --sync 
+kenneth@kennethd ~ $ sudo mkdir  /etc/portage/package.mask 
+kenneth@kennethd ~ $ sudo mkdir  /etc/portage/package.mask/net-libs 
+kenneth@kennethd ~ $ sudo sh -c 'echo ">net-libs/courier-unicode-1.3" >/etc/portage/package.mask/net-libs/courier-unicode' 
+kenneth@kennethd ~ $ cat /etc/portage/package.mask/net-libs/courier-unicode 
+>net-libs/courier-unicode-1.3
+
+kenneth@kennethd ~ $  sudo emerge -auDN @system 
 !!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
->>> Syncing repository 'gentoo' into '/var/src/portage'...
-/usr/bin/git pull
-error: cannot open .git/FETCH_HEAD: Read-only file system
-!!! git pull error in /var/src/portage
-q: Updating ebuild cache in /var/src/portage ... 
-q: Finished 38474 entries in 4.427181 seconds
-!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+
+These are the packages that would be merged, in order:
+
+Calculating dependencies... done!
+[ebuild  N     ] net-libs/courier-unicode-1.3 
+[ebuild  N     ] net-libs/courier-authlib-0.66.4  USE="berkdb crypt gdbm mysql pam postgres -debug -ldap -libressl -sqlite -static-libs" 
+[ebuild  N     ] net-mail/courier-imap-4.16.2-r1  USE="berkdb gdbm ipv6 -debug -fam -gnutls -libressl (-selinux) -trashquota" 
+
+Would you like to merge these packages? [Yes/No] 
+
+...
+
+ * Please read http://www.courier-mta.org/imap/INSTALL.html#upgrading
+ * and remove TLS_DHPARAMS from configuration files or run mkdhparams
+ * For a quick-start howto please refer to
+ * courier-imap-gentoo.readme in /usr/share/doc/courier-imap-4.16.2-r1
+
+ * Messages for package net-libs/courier-authlib-0.66.4:
+
+ * The dev-tcltk/expect package is not installed.
+ * Without it, you will not be able to change system login passwords.
+ * However non-system authentication modules (LDAP, MySQL, PostgreSQL,
+ * and others) will work just fine.
+ * Both gdbm and berkdb selected. Using gdbm.
+
+ * Messages for package net-mail/courier-imap-4.16.2-r1:
+
+ * Please read http://www.courier-mta.org/imap/INSTALL.html#upgrading
+ * and remove TLS_DHPARAMS from configuration files or run mkdhparams
+ * For a quick-start howto please refer to
+ * courier-imap-gentoo.readme in /usr/share/doc/courier-imap-4.16.2-r1
+
+
+
+and...
+
+kenneth@kennethd ~ $ sudo emerge -av dev-tcltk/expect
+
+
+
+
+== Re-reviewing depclean output
+
+>>> These are the packages that would be unmerged:
+
+ dev-python/characteristic
+    selected: 14.3.0-r1 
+   protected: none 
+     omitted: none 
+
+ virtual/perl-Attribute-Handlers
+    selected: 0.970.0 
+   protected: none 
+     omitted: none 
+
+ mail-client/roundcube
+    selected: 1.0.6 
+   protected: none 
+     omitted: 1.2.0 
+
+ dev-python/packaging
+    selected: 15.3-r2 
+   protected: none 
+     omitted: none 
+
+ dev-db/tinycdb
+    selected: 0.77-r2 
+   protected: none 
+     omitted: none 
+
+ app-admin/python-updater
+    selected: 0.13 
+   protected: none 
+     omitted: none 
+
+ app-arch/rpm2targz
+    selected: 9.0.0.5g 
+   protected: none 
+     omitted: none 
+
+ virtual/httpd-php
+    selected: 5.5 
+   protected: none 
+     omitted: 7.0 
+
+ dev-php/PEAR-Crypt_GPG
+    selected: 1.3.2 
+   protected: none 
+     omitted: none 
+
+ dev-php/PEAR-Net_Sieve
+    selected: 1.3.3 
+   protected: none 
+     omitted: none 
+
+ dev-lang/python
+    selected: 3.3.5-r8 
+   protected: none 
+     omitted: 2.7.12 3.4.5 
+
+ dev-lang/php
+    selected: 5.5.30 
+   protected: none 
+     omitted: 7.0.9-r2 
+
+ sys-libs/db
+    selected: 4.8.30-r2 
+   protected: none 
+     omitted: 5.3.28-r3 6.0.30-r2 
+
+ dev-db/postgresql
+    selected: 9.4.5-r1 
+   protected: none 
+     omitted: 9.5.3 
+
+
+
+
+kenneth@kennethd ~ $ eselect python list
+Available Python interpreters:
+  [1]   python2.7 *
+  [2]   python3.3
+  [3]   python3.4
+kenneth@kennethd ~ $ sudo eselect python set --python3 python3.4
+kenneth@kennethd ~ $ eselect python list --python3
+Available Python 3 interpreters:
+  [1]   python3.3
+  [2]   python3.4 *
+kenneth@kennethd ~ $ sudo eselect python set  python3.4
+kenneth@kennethd ~ $ eselect python list
+Available Python interpreters:
+  [1]   python2.7
+  [2]   python3.3
+  [3]   python3.4 *
+kenneth@kennethd ~ $ python --version
+Python 3.4.5
+
+
+kenneth@kennethd ~ $ sudo eselect postgresql set 9.5
+Setting 9.5 as the default installation...
+        Removing old links...done.
+        Generating new links...done.
+Setting 9.5 as default was successful!
+
+
+Finally allowing depclean to do its thing results in:
+
+
+ * Messages for package dev-db/postgresql-9.4.5-r1:
+
+ * Have you dumped and/or migrated the 9.4 database cluster?
+ *      https://wiki.gentoo.org/wiki/PostgreSQL/QuickStart#Migrating_PostgreSQL
+
+ * GNU info directory index is up-to-date.
 
  * IMPORTANT: 11 config files in '/etc' need updating.
  * See the CONFIGURATION FILES section of the emerge
  * man page to learn how to update config files.
+
+
+kenneth@kennethd ~ $ sudo revdep-rebuild -v -- --ask 
+!!! Found 2 make.conf files, using both '/etc/make.conf' and '/etc/portage/make.conf'
+ * This is the new python coded version
+ * Please report any bugs found using it.
+ * The original revdep-rebuild script is installed as revdep-rebuild.sh
+ * Please file bugs at: https://bugs.gentoo.org/
+ * Collecting system binaries and libraries
+ * Collecting dynamic linking informations
+ * Scanning files
+ * Checking dynamic linking consistency
+
+Your system is consistent
+
+
+
+kenneth@kennethd ~ $ sudo eix-test-obsolete 
+Password: 
+
+No non-matching entries in /etc/portage/package.keywords
+No non-matching entries in /etc/portage/package.accept_keywords
+No non-matching entries in /etc/portage/package.mask
+No non-matching entries in /etc/portage/package.unmask
+No non-matching or empty entries in /etc/portage/package.use
+No non-matching or empty entries in /etc/portage/package.env
+No non-matching or empty entries in /etc/portage/package.license
+No non-matching or empty entries in /etc/portage/package.accept_restrict
+No non-matching or empty entries in /etc/portage/package.cflags
+The names of all installed packages are in the database.
+
+No  redundant  entries in /etc/portage/package.{,accept_}keywords
+No uninstalled entries in /etc/portage/package.{,accept_}keywords
+No  redundant  entries in /etc/portage/package.mask
+No uninstalled entries in /etc/portage/package.mask
+No  redundant  entries in /etc/portage/package.unmask
+No uninstalled entries in /etc/portage/package.unmask
+Skipping check:  redundant  entries in /etc/portage/package.use
+Skipping check: uninstalled entries in /etc/portage/package.use
+Skipping check:  redundant  entries in /etc/portage/package.env
+Skipping check: uninstalled entries in /etc/portage/package.env
+No  redundant  entries in /etc/portage/package.license
+No uninstalled entries in /etc/portage/package.license
+No  redundant  entries in /etc/portage/package.accept_restrict
+No uninstalled entries in /etc/portage/package.accept_restrict
+Skipping check:  redundant  entries in /etc/portage/package.cflags
+Skipping check: uninstalled entries in /etc/portage/package.cflags
+All installed versions of packages are in the database.
 
 
